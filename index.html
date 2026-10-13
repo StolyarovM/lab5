@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Лабораторная работа — PaaS и Heroku</title>
+    <style>
+        /* ===== ПЕРЕМЕННЫЕ ===== */
+        :root {
+            --teal-dark: #0d3b3f;
+            --teal: #14746f;
+            --teal-light: #4ecdc4;
+            --coral: #ff6b6b;
+            --coral-dark: #e63946;
+            --sand: #f4f1de;
+            --sand-dark: #e8e3cc;
+            --cream: #fefae0;
+            --text: #1d2d2f;
+            --text-muted: #5a6b6d;
+            --white: #ffffff;
+            --shadow-sm: 0 2px 8px rgba(13, 59, 63, 0.08);
+            --shadow-md: 0 6px 20px rgba(13, 59, 63, 0.12);
+            --shadow-lg: 0 15px 40px rgba(13, 59, 63, 0.18);
+            --radius: 14px;
+            --transition: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            line-height: 1.7;
+            color: var(--text);
+            background: var(--sand);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Декоративный фон */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            right: -20%;
+            width: 700px;
+            height: 700px;
+            background: radial-gradient(circle, rgba(78, 205, 196, 0.18) 0%, transparent 70%);
+            border-radius: 50%;
+            z-index: -1;
+            animation: floatBg 18s ease-in-out infinite;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            bottom: -30%;
+            left: -15%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(255, 107, 107, 0.12) 0%, transparent 70%);
+            border-radius: 50%;
+            z-index: -1;
+            animation: floatBg 22s ease-in-out infinite reverse;
+        }
+
+        @keyframes floatBg {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(40px, -40px) scale(1.1); }
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* ===== ШАПКА ===== */
+        header {
+            background: linear-gradient(135deg, var(--teal-dark) 0%, var(--teal) 60%, var(--teal-light) 130%);
+            color: var(--white);
+            padding: 80px 0 70px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            clip-path: polygon(0 0, 100% 0, 100% 88%, 0 100%);
+            margin-bottom: -30px;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image:
+                radial-gradient(circle at 15% 25%, rgba(255,255,255,0.08) 0%, transparent 25%),
+                radial-gradient(circle at 85% 75%, rgba(255,107,107,0.15) 0%, transparent 30%);
+            pointer-events: none;
+        }
+
+        header::after {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            top: -50%;
+            left: -50%;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 40px,
+                rgba(255,255,255,0.02) 40px,
+                rgba(255,255,255,0.02) 80px
+            );
+            animation: slidePattern 40s linear infinite;
+        }
+
+        @keyframes slidePattern {
+            from { transform: translate(0, 0); }
+            to { transform: translate(80px, 80px); }
+        }
+
+        header .container {
+            position: relative;
+            z-index: 2;
+        }
+
+        header h1 {
+            font-size: 2.8em;
+            margin-bottom: 14px;
+            letter-spacing: -0.5px;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            animation: fadeUp 0.8s ease both;
+        }
+
+        .subtitle {
+            font-size: 1.15em;
+            opacity: 0.95;
+            font-weight: 300;
+            max-width: 700px;
+            margin: 0 auto;
+            animation: fadeUp 0.8s ease 0.15s both;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(25px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== НАВИГАЦИЯ ===== */
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(254, 250, 224, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(20, 116, 111, 0.15);
+            box-shadow: var(--shadow-sm);
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 6px 0;
+        }
+
+        nav a {
+            color: var(--teal-dark);
+            text-decoration: none;
+            padding: 12px 20px;
+            display: block;
+            font-weight: 600;
+            font-size: 0.95em;
+            border-radius: 30px;
+            margin: 4px;
+            transition: all var(--transition);
+            position: relative;
+        }
+
+        nav a:hover {
+            background: var(--teal);
+            color: var(--white);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(20, 116, 111, 0.3);
+        }
+
+        /* ===== ОСНОВНОЙ КОНТЕНТ ===== */
+        main {
+            padding: 60px 24px 40px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .card {
+            background: var(--white);
+            padding: 36px;
+            margin-bottom: 28px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            transition: transform var(--transition), box-shadow var(--transition);
+            position: relative;
+            overflow: hidden;
+            border-left: 5px solid var(--teal-light);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; right: 0;
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle at top right, rgba(78, 205, 196, 0.1), transparent 70%);
+            border-radius: 0 var(--radius) 0 100%;
+            transition: all var(--transition);
+        }
+
+        .card:hover {
+            transform: translateY(-6px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .card:hover::before {
+            width: 160px;
+            height: 160px;
+            background: radial-gradient(circle at top right, rgba(255, 107, 107, 0.12), transparent 70%);
+        }
+
+        .card h2 {
+            color: var(--teal-dark);
+            margin-bottom: 22px;
+            padding-bottom: 14px;
+            font-size: 1.6em;
+            position: relative;
+            display: inline-block;
+        }
+
+        .card h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--coral), var(--teal-light));
+            border-radius: 2px;
+        }
+
+        /* ===== АРХИТЕКТУРЫ ===== */
+        .arch-item {
+            padding: 20px 20px 20px 26px;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--cream) 0%, var(--sand) 100%);
+            border-radius: 10px;
+            position: relative;
+            transition: all var(--transition);
+            border: 1px solid rgba(20, 116, 111, 0.08);
+        }
+
+        .arch-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            border-radius: 4px 0 0 4px;
+            background: var(--teal);
+            transition: width var(--transition);
+        }
+
+        .arch-item:nth-child(2)::before { background: var(--teal-light); }
+        .arch-item:nth-child(3)::before { background: var(--coral); }
+        .arch-item:nth-child(4)::before { background: var(--coral-dark); }
+
+        .arch-item:hover {
+            transform: translateX(6px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .arch-item:hover::before {
+            width: 8px;
+        }
+
+        .arch-item h3 {
+            color: var(--teal-dark);
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-size: 0.75em;
+            font-weight: 700;
+            margin-left: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            vertical-align: middle;
+        }
+
+        .badge.bad {
+            background: #ffe0e0;
+            color: var(--coral-dark);
+        }
+
+        .badge.ok {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge.good {
+            background: #d4f4ee;
+            color: var(--teal);
+        }
+
+        /* ===== ТАБЛИЦА ===== */
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: 10px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: var(--white);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 15px 18px;
+            text-align: left;
+            border-bottom: 1px solid rgba(20, 116, 111, 0.1);
+        }
+
+        th {
+            background: linear-gradient(135deg, var(--teal-dark), var(--teal));
+            color: var(--white);
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        tbody tr {
+            transition: background var(--transition);
+        }
+
+        tbody tr:nth-child(even) {
+            background: rgba(244, 241, 222, 0.4);
+        }
+
+        tbody tr:hover {
+            background: rgba(78, 205, 196, 0.12);
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .note {
+            margin-top: 22px;
+            padding: 18px 22px;
+            background: linear-gradient(135deg, #fff8e1 0%, #fef3c7 100%);
+            border-left: 4px solid var(--coral);
+            border-radius: 8px;
+            font-size: 0.98em;
+        }
+
+        /* ===== СПИСОК ВОЗМОЖНОСТЕЙ ===== */
+        .features {
+            list-style: none;
+        }
+
+        .features li {
+            padding: 14px 0 14px 42px;
+            position: relative;
+            border-bottom: 1px dashed rgba(20, 116, 111, 0.15);
+            transition: all var(--transition);
+        }
+
+        .features li:last-child {
+            border-bottom: none;
+        }
+
+        .features li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--teal-light), var(--teal));
+            color: var(--white);
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 0.85em;
+            box-shadow: 0 3px 8px rgba(78, 205, 196, 0.4);
+            transition: transform var(--transition);
+        }
+
+        .features li:hover {
+            padding-left: 48px;
+            color: var(--teal-dark);
+        }
+
+        .features li:hover:before {
+            transform: translateY(-50%) scale(1.15) rotate(360deg);
+        }
+
+        /* ===== ШАГИ ===== */
+        .steps {
+            list-style: none;
+            counter-reset: step;
+        }
+
+        .steps li {
+            counter-increment: step;
+            padding: 16px 16px 16px 70px;
+            margin-bottom: 12px;
+            position: relative;
+            background: linear-gradient(135deg, var(--cream), var(--sand));
+            border-radius: 10px;
+            font-size: 1.02em;
+            transition: all var(--transition);
+            border: 1px solid rgba(20, 116, 111, 0.08);
+        }
+
+        .steps li::before {
+            content: counter(step);
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--coral), var(--coral-dark));
+            color: var(--white);
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 1.1em;
+            box-shadow: 0 4px 12px rgba(230, 57, 70, 0.3);
+            transition: transform var(--transition);
+        }
+
+        .steps li:hover {
+            transform: translateX(6px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .steps li:hover::before {
+            transform: translateY(-50%) rotate(-8deg) scale(1.08);
+        }
+
+        /* ===== FAQ ===== */
+        details {
+            padding: 18px 22px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--cream) 0%, var(--sand) 100%);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all var(--transition);
+            border: 1px solid rgba(20, 116, 111, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        details::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 4px;
+            background: var(--teal-light);
+            transition: background var(--transition), width var(--transition);
+        }
+
+        details:hover {
+            box-shadow: var(--shadow-sm);
+            transform: translateX(4px);
+        }
+
+        details[open] {
+            background: linear-gradient(135deg, #e8f8f6 0%, #d4f4ee 100%);
+        }
+
+        details[open]::before {
+            background: var(--coral);
+            width: 6px;
+        }
+
+        summary {
+            font-weight: 600;
+            color: var(--teal-dark);
+            cursor: pointer;
+            list-style: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+        }
+
+        summary::-webkit-details-marker {
+            display: none;
+        }
+
+        summary::after {
+            content: "+";
+            font-size: 1.5em;
+            color: var(--teal);
+            font-weight: 300;
+            transition: transform var(--transition);
+            flex-shrink: 0;
+        }
+
+        details[open] summary::after {
+            content: "−";
+            transform: rotate(180deg);
+            color: var(--coral);
+        }
+
+        details p {
+            margin-top: 14px;
+            padding-left: 18px;
+            color: var(--text-muted);
+            border-left: 2px solid var(--teal-light);
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        code {
+            background: var(--teal-dark);
+            color: var(--teal-light);
+            padding: 3px 9px;
+            border-radius: 5px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.88em;
+            font-weight: 500;
+        }
+
+        /* ===== ПОДВАЛ ===== */
+        footer {
+            background: linear-gradient(135deg, var(--teal-dark), #0a2b2e);
+            color: var(--white);
+            text-align: center;
+            padding: 40px 0 30px;
+            margin-top: 50px;
+            position: relative;
+            clip-path: polygon(0 15%, 100% 0, 100% 100%, 0 100%);
+            padding-top: 70px;
+        }
+
+        footer::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--coral), var(--teal-light), var(--coral));
+            background-size: 200% 100%;
+            animation: gradientMove 4s linear infinite;
+        }
+
+        @keyframes gradientMove {
+            from { background-position: 0% 0; }
+            to { background-position: 200% 0; }
+        }
+
+        footer p {
+            margin: 6px 0;
+            opacity: 0.9;
+        }
+
+        footer strong {
+            color: var(--teal-light);
+        }
+
+        /* ===== АНИМАЦИЯ ПОЯВЛЕНИЯ ===== */
+        .reveal {
+            opacity: 0;
+            transform: translateY(35px);
+            transition: opacity 0.7s ease, transform 0.7s ease;
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ===== АДАПТИВНОСТЬ ===== */
+        @media (max-width: 768px) {
+            header {
+                padding: 60px 0 50px;
+                clip-path: polygon(0 0, 100% 0, 100% 94%, 0 100%);
+            }
+            header h1 { font-size: 1.9em; }
+            .subtitle { font-size: 1em; }
+
+            nav ul {
+                flex-direction: column;
+                padding: 8px;
+            }
+            nav a {
+                text-align: center;
+                padding: 10px;
+            }
+
+            main { padding: 40px 16px; }
+            .card { padding: 24px 20px; }
+            .card h2 { font-size: 1.3em; }
+
+            table { font-size: 0.85em; }
+            th, td { padding: 10px 12px; }
+
+            .steps li { padding-left: 60px; }
+            .steps li::before {
+                width: 34px;
+                height: 34px;
+                font-size: 0.95em;
+            }
+        }
+
+        @media (max-width: 480px) {
+            header h1 { font-size: 1.5em; }
+            .badge {
+                display: block;
+                margin: 8px 0 0;
+                width: fit-content;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1> Лабораторная работа</h1>
+            <p class="subtitle">Модель обслуживания PaaS на примере деплоя приложения в Heroku</p>
+        </div>
+    </header>
+
+    <nav>
+        <div class="container">
+            <ul>
+                <li><a href="#goal"> Цель</a></li>
+                <li><a href="#architectures"> Архитектуры</a></li>
+                <li><a href="#methodologies"> Методологии</a></li>
+                <li><a href="#heroku"> Heroku</a></li>
+                <li><a href="#steps"> Порядок</a></li>
+                <li><a href="#questions"> Вопросы</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        <section id="goal" class="card reveal">
+            <h2> Цель работы</h2>
+            <p>Ознакомиться с моделью гибкой разработки программного обеспечения, развернуть приложение на Heroku, ознакомиться с системой контроля версий Git.</p>
+        </section>
+
+        <section id="architectures" class="card reveal">
+            <h2>Эволюция архитектур ИС</h2>
+
+            <div class="arch-item">
+                <h3>1. Монолитная архитектура</h3>
+                <p>На одном компьютере работали и приложения, и база данных. Пользователи работали у «тонких» терминалов. <span class="badge bad">Много недостатков</span></p>
+            </div>
+
+            <div class="arch-item">
+                <h3>2. Клиент-серверная архитектура</h3>
+                <p>Выделенный сервер баз данных + «толстые клиенты» пользователей. <span class="badge ok">Разгрузка сервера БД</span></p>
+            </div>
+
+            <div class="arch-item">
+                <h3>3. Многоуровневая архитектура</h3>
+                <p>Логика приложений вынесена на <strong>сервер приложений</strong>, пользователи работают на «тонких» клиентах через браузеры. <span class="badge good">Современный стандарт</span></p>
+            </div>
+        </section>
+
+        <section id="methodologies" class="card reveal">
+            <h2> Методологии разработки ПО</h2>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Критерий</th>
+                            <th>Каскадная (Waterfall)</th>
+                            <th>Гибкая (Agile)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Процесс</td>
+                            <td>Последовательный</td>
+                            <td>Итеративный</td>
+                        </tr>
+                        <tr>
+                            <td>Обратная связь</td>
+                            <td>После завершения</td>
+                            <td>После каждой итерации</td>
+                        </tr>
+                        <tr>
+                            <td>Стоимость и сроки</td>
+                            <td>Определены заранее</td>
+                            <td>Сложно оценить</td>
+                        </tr>
+                        <tr>
+                            <td>Управление</td>
+                            <td>Простое</td>
+                            <td>Требует опыта</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="note"> <strong>Extreme Programming (XP)</strong> — одно из известных практических применений Agile.</p>
+        </section>
+
+        <section id="heroku" class="card reveal">
+            <h2> Heroku как PaaS-платформа</h2>
+            <ul class="features">
+                <li>Поддерживает <strong>Java, Node.js, Scala, Clojure, Python, PHP</strong></li>
+                <li>Собственный DNS-сервер</li>
+                <li>Виртуальные процессы — <strong>«dynos»</strong>, распределённые по виртуальной сетке</li>
+                <li>Поддержка <strong>Git</strong> и интеграция с <strong>GitHub</strong></li>
+                <li>Быстрый деплой без собственной инфраструктуры</li>
+            </ul>
+        </section>
+
+        <section id="steps" class="card reveal">
+            <h2> Порядок выполнения работы</h2>
+            <ol class="steps">
+                <li>Зарегистрироваться в Heroku</li>
+                <li>Создать тестовое приложение на Python (или другом языке)</li>
+                <li>Задеплоить приложение на Heroku</li>
+                <li>Внести изменения в код и снова задеплоить</li>
+                <li>Ознакомиться с дополнительными возможностями Heroku и Git</li>
+            </ol>
+        </section>
+
+        <section id="questions" class="card reveal">
+            <h2> Контрольные вопросы</h2>
+            <details>
+                <summary>1. Почему Agile становится всё популярнее?</summary>
+                <p>Заказчик видит результат после каждой итерации и может корректировать требования. Это повышает гибкость и снижает риски.</p>
+            </details>
+            <details>
+                <summary>2. Преимущества PaaS перед IaaS?</summary>
+                <p>PaaS избавляет от необходимости управлять инфраструктурой: ОС, серверы, масштабирование берёт на себя провайдер. IaaS же требует самостоятельной настройки.</p>
+            </details>
+            <details>
+                <summary>3. Зачем команды add, commit, push в Git?</summary>
+                <p><code>add</code> — добавляет файлы в индекс, <code>commit</code> — фиксирует изменения локально, <code>push</code> — отправляет их в удалённый репозиторий.</p>
+            </details>
+            <details>
+                <summary>4. Преимущества Heroku перед локальным окружением?</summary>
+                <p>Быстрый деплой, автоматическое масштабирование, доступность из любой точки мира, не нужно настраивать серверы и следить за инфраструктурой.</p>
+            </details>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>© 2024 Лабораторная работа. Модель обслуживания PaaS</p>
+            <p>Студент: <strong>Ваше Имя</strong> | Группа: <strong>Ваша группа</strong></p>
+        </div>
+    </footer>
+
+    <script>
+        // Плавная прокрутка
+        document.querySelectorAll('nav a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    const offset = document.querySelector('nav').offsetHeight;
+                    window.scrollTo({
+                        top: target.offsetTop - offset - 10,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+
+        // Анимация появления карточек
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+        // Активный раздел в навигации
+        window.addEventListener('scroll', () => {
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('nav a');
+            let current = '';
+
+            sections.forEach(section => {
+                if (window.pageYOffset >= section.offsetTop - 150) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.style.background = '';
+                link.style.color = '';
+                if (link.getAttribute('href') === '#' + current) {
+                    link.style.background = 'var(--teal)';
+                    link.style.color = 'var(--white)';
+                }
+            });
+        });
+
+        console.log(' Страница загружена');
+    </script>
+</body>
+</html>
